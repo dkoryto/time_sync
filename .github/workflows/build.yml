@@ -1,0 +1,48 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags:
+      - 'v*'  # Uruchom tylko gdy tag zaczynający się od 'v' zostanie wypchnięty
+
+permissions:
+  contents: write  # Uprawnienia do tworzenia releases
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+
+    - name: Create admin manifest
+      run: |
+        echo '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' > admin_manifest.xml
+        echo '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">' >> admin_manifest.xml
+        echo '  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">' >> admin_manifest.xml
+        echo '    <security>' >> admin_manifest.xml
+        echo '      <requestedPrivileges>' >> admin_manifest.xml
+        echo '        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>' >> admin_manifest.xml
+        echo '      </requestedPrivileges>' >> admin_manifest.xml
+        echo '    </security>' >> admin_manifest.xml
+        echo '  </trustInfo>' >> admin_manifest.xml
+        echo '</assembly>' >> admin_manifest.xml
+
+    - name: Build EXE
+      run: |
+        pyinstaller --onefile --windowed --name ZegarSync --manifest admin_manifest.xml time.py
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ZegarSync.exe
